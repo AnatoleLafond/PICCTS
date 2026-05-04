@@ -26,9 +26,9 @@ firstStepEquilibrium = True
 PIDnbr = 2 # xGEMS only, COMSOL is natively parallelised
 
 
-enginePath  ="/volatile/home/al274877/PICCTS/DossierParent" # change your path here
+enginePath  ="" # change your path here
 if __name__ == "__main__":
-    spec = importlib.util.spec_from_file_location(rf"{enginePath}/engine_v.0.1.2",rf"{enginePath}/engine_v.0.1.2.py")
+    spec = importlib.util.spec_from_file_location(rf"{enginePath}/engine",rf"{enginePath}/engine.py")
     with open("store.txt", "w", encoding="utf-8") as fichier:
         fichier.write(os.path.dirname(os.path.abspath(__file__))+'\n')
         fichier.write(os.path.basename(__file__))
