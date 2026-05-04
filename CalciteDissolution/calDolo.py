@@ -15,12 +15,12 @@ nonTrivialDC = {"Cal": {"Ca" : 1, "C" : 1, "O" : 3},
                     "Dis-Dol": {"Mg" : 1, "C" : 2, "Ca" : 1, "O" : 6}
                     }
 
-chemPath ="/volatile/home/al274877/PICCTS/Resources/CalciteIC/CalciteIC-dat.lst"
+chemPath ="Resources/CalciteIC/CalciteIC-dat.lst" # change this path if necessary
 trsptPath = "calDoloGems.mph"
 
 independentComponents = ["C","Ca","Cl","H","Mg","O","Sn","Zz"] # attention to the order ! should match the order in the .lst files
 
-# initialConditions = "/volatile/home/al274877/PICCTS/CalDolo/ic.txt"
+initialConditions = "ic.txt"
 
 firstStepEquilibrium = True
 PIDnbr = 2 # xGEMS only, COMSOL is natively parallelised
