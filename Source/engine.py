@@ -5,6 +5,7 @@ import sys
 import importlib.util
 import os
 import shutil
+import difflib
 
 import re
 
@@ -70,7 +71,72 @@ if getattr(PICCTS_input, 'intermediateOutput', True) :
             paths[txt] = getattr(PICCTS_input, txt, outputDefault[i])
 
 
+
+
+def normalize_choice(value, mapping, field_name):
+    if isinstance(value, str):
+        value_norm = value.lower()
+    else:
+        value_norm = value
+    for canonical, aliases in mapping.items():
+        for alias in aliases:
+            if isinstance(alias, str):
+                if value_norm == alias.lower():
+                    return canonical
+            else:
+                if value_norm == alias:
+                    return canonical
+
+    str_aliases = [
+        alias.lower()
+        for aliases in mapping.values()
+        for alias in aliases
+        if isinstance(alias, str)
+    ]
+
+    suggestion = None
+    if isinstance(value, str):
+        matches = difflib.get_close_matches(value_norm, str_aliases, n=1, cutoff=0.6)
+        if matches:
+            suggestion = matches[0]
+
+    if suggestion:
+        raise ValueError(
+            f"Invalid value for '{field_name}': {value!r}. "
+            f"Do you mean '{suggestion}' ? "
+        )
+    else:
+        raise ValueError(
+            f"Invalid value for '{field_name}': {value!r}. "
+        )
+
+
+
+# mappings
+operator_map = {
+    'SNIA': [1, '1', 'snia'],
+    'Strang': [2, '2', 'strang'],
+    'Alternative': [3, '3', 'alternative'],
+    'Additive': [4, '4', 'additive'],
+    'Symmetrical': [5, '5', 'symmetrical'],
+}
+
+chem_map = {
+    'PhreeqC': [1, '1', 'phreeqc','PhreeqC','Phreeqc'],
+    'xGEMS': [2, '2', 'xgems','xGEMS','gems'],
+    'ORCHESTRA': [3, '3', 'orchestra','ORCHESTRA', 'Orchestra'],
+}
+
+trspt_map = {
+    'COMSOL': [1, '1', 'comsol','Comsol','COMSOL'],
+}
+
+
+
 def main():
+    
+    
+    
     def writeTime(tps, arr=10):
         if tps >= 3600 * 24:
             return f"{tps / (3600 * 24):.{arr}f} d"
@@ -217,42 +283,12 @@ def main():
                 
         return current, charge
    
+   
+    coupledParameters = {}
     
-    completeCpldParam = [
-        ['viscos','viscosity(mPa·s)','v','visc'],
-        ['tk','temperature(K)','t','temp','tempK','tK','temperatureK','temperature'],
-        ['tc','temperature(°C)','tC','tempC','temperatureC'],
-        ['mu','ionicStrength(mol/kgw)','IS','is'],
-        ['EDL','EDL_','edl'],
-        ['TOT','TotAq_','tot_aq'],
-        ]
-    coupledParameters = {} 
-    partialCoupledParameters = getattr(PICCTS_input, 'partialCoupledParameters', [])
-    if getattr(PICCTS_input, 'coupledParameters', None):
-        for cpld in getattr(PICCTS_input, 'coupledParameters', None): 
-            for cpldList in completeCpldParam:
-                if isinstance(cpld, dict): 
-                    for key in cpld.keys():
-                        if key in cpldList:
-                            val = cpld[key]
-                            if all(isinstance(v, list) for v in val):
-                                coupledParameters[cpldList[1]] = [cpldList[0]] + val
-                            else:
-                                coupledParameters[cpldList[1]] = [cpldList[0], val]
-                                break
-                elif cpld in cpldList:
-                    coupledParameters[cpldList[1]] = [cpldList[0]]
-                    break
-                elif cpldList == completeCpldParam[-1]:
-                    partialCoupledParameters += [cpld]
-                
-    coupledParametersNames = []
-    for name in coupledParameters.keys():
-        val = coupledParameters[name]
-        if len(val) > 1 and isinstance(val[1], list):
-            for spc in val[1]:
-                coupledParametersNames += [f"{name}{spc}"]
-        else: coupledParametersNames += [f"{name}"]
+    partialCoupledParameters = getattr(PICCTS_input, 'partialCoupledParameters', {})
+    
+
     maillesChargeGeom = []
     specieChargeGeom = []
     if getattr(PICCTS_input, 'speciesChargeGeometry', None):
@@ -265,40 +301,46 @@ def main():
         phases += "Fix_ph\nH+=H+; log_k 0"
     
     centralDict = { # gather keywords which do not depend on components
-        "commMtrx": readInputFile(paths['initialConditions'],['x', 'y', 'z'][:getattr(PICCTS_input, 'geometry', 1)],(partialCoupledParameters + getattr(PICCTS_input, 'systemSpeciation', None))), # pd.read_csv(paths['IC'],sep=r"\s+",comment="%",dtype=float),
+        "commMtrx": readInputFile(paths['initialConditions'],['x', 'y', 'z'][:getattr(PICCTS_input, 'geometry', 1)],getattr(PICCTS_input, 'systemSpeciation', None)),
         "warningRun": 0,
+        "partialCrossDependencies" : getattr(PICCTS_input, 'partialCrossDependencies', {}),
         "AcidicEcho": pd.DataFrame(),
         "waitingTime" : 0,
-        "couplingInfo" : [ ['SNIA','Strang','Alternative','Additive','Symmetrical'][getattr(PICCTS_input, 'operatorSplitting', 1)-1],
-                          ['PhreeqC','xGEMS','ORCHESTRA'][getattr(PICCTS_input, 'chemModule', 1)-1],
-                          ['COMSOL'][getattr(PICCTS_input, 'trsptModule', 1)-1],
-            ],
+        "couplingInfo" :[normalize_choice(getattr(PICCTS_input, 'operatorSplitting', 1), operator_map, 'operatorSplitting'),
+                         normalize_choice(getattr(PICCTS_input, 'chemModule', 1), chem_map, 'chemModule'),
+                         normalize_choice(getattr(PICCTS_input, 'trsptModule', 1), trspt_map, 'trsptModule')],
+
         "paths" : paths,
         "system" : getattr(PICCTS_input, 'system', 1),
         "stepReprise" : getattr(PICCTS_input, 'stepReprise', False),
         "PIDnbr": getattr(PICCTS_input, 'PIDnbr', 1),
-        "rnvllmt": getattr(PICCTS_input, 'renouvellement', None),
         "systemSpeciation" : getattr(PICCTS_input, 'systemSpeciation', None),
         "timeUnit" : getattr(PICCTS_input, 'timeUnit', 's'),
         "geometry" : getattr(PICCTS_input, 'geometry', 1),
         "coupledParameters" :  coupledParameters,
-        "coupledParametersNames" : coupledParametersNames,
         "partialCoupledParameters" : partialCoupledParameters,
         "coord" : ['x', 'y', 'z'][:getattr(PICCTS_input, 'geometry', 1)],
         "chemModule" : getattr(PICCTS_input, 'chemModule', 1),
         "trsptModule" : getattr(PICCTS_input, 'trsptModule', 1),
         "firstStepEquilibrium" : getattr(PICCTS_input, 'firstStepEquilibrium', False),
         }
+
+    print(f"""
+####   #  ####  ####  #####  ####     {centralDict['couplingInfo'][0]} splitting :
+#  #   #  #     #       #    #        {centralDict['couplingInfo'][1]}--->
+####   #  #     #       #    ####            <---{centralDict['couplingInfo'][2]}
+#      #  #     #       #       #     {maxTime-timeStepReprise}{centralDict['timeUnit']} in {len(dtPICCTS)-stepReprise} steps        
+#      #  ####  ####    #    ####     
+       """, flush=True)
     
     if centralDict["couplingInfo"][1] == 'PhreeqC':
         import phreeqc
+
         speciationLauncher = {
-            1: phreeqc.spct,
-        }
+            'PhreeqC': phreeqc.spct}                
         
         centralDict.update({
         "primToSecSpecies" : getattr(PICCTS_input, 'primToSecSpecies', {}),
-
         "chemPath" : getattr(PICCTS_input, 'chemPath', 'phreeqc.dat'),
         "current" : getattr(PICCTS_input, 'current', None),
         "primarySpecies" : [getattr(PICCTS_input, "primarySpeciesAq", []),
@@ -326,23 +368,8 @@ def main():
                      getattr(PICCTS_input, 'kineticRates', None),
                      getattr(PICCTS_input, 'kinetics', None),],
         "fixpH": getattr(PICCTS_input, "fixpH", None),
-        "userVarBool": {'pH':getattr(PICCTS_input, 'pH', False),
-                        'pe':getattr(PICCTS_input, 'pe', False),
-                        'reaction':getattr(PICCTS_input, 'reaction', False),
-                        'temperature':getattr(PICCTS_input, 'temperature', False),
-                        'alkalinity':getattr(PICCTS_input, 'alkalinity', False),
-                        'ionicStrength':getattr(PICCTS_input, 'ionicStrength', False),
-                        'water':getattr(PICCTS_input, 'water', False),
-                        'charge':getattr(PICCTS_input, 'charge', False),
-                        'pourcentError':getattr(PICCTS_input, 'pourcentError', False)},
-        "userVarList": {'totals':getattr(PICCTS_input, 'totals', False),
-                       'activities':getattr(PICCTS_input, 'activities', False),
-                       'saturationIndices':getattr(PICCTS_input, 'saturationIndices', False),
-                       'gases':getattr(PICCTS_input, 'gases', False),
-                       'kineticReactant':getattr(PICCTS_input, 'kineticReactant', False),
-                       'solidSolution':getattr(PICCTS_input, 'solidSolution', False),
-                       'isotopes':getattr(PICCTS_input, 'isotopes', False),
-                       'calculateValues':getattr(PICCTS_input, 'calculateValues', False)},
+        "userVarBool": getattr(PICCTS_input, "userVarBool", {}),
+        "userVarList": getattr(PICCTS_input, "userVarList", {}),
         "maillesChargeGeom" : maillesChargeGeom,
         "solMod" : getattr(PICCTS_input, 'solMod', False),
         "speciesCharge" : getattr(PICCTS_input, "speciesCharge", ['pH']),
@@ -354,13 +381,14 @@ def main():
         "catholyte" : getattr(PICCTS_input, "catholyte", None),
         "anolyte" : getattr(PICCTS_input, "anolyte", None),
         "solModCharge" : getattr(PICCTS_input, "solModCharge", 0),
-        "renouvellement" : getattr(PICCTS_input, 'renouvellement', None),
+        "renouvellement" : getattr(PICCTS_input, 'renouvellement', []),
         "acidicTrspt": getattr(PICCTS_input, 'acidicTrspt', False),
         "PhreeqCClockTime": 0,
         "PhreeqCPrcsTime": 0,
         "water" : getattr(PICCTS_input, 'water', False),
         "kinetics" : getattr(PICCTS_input, 'kinetics', False),
         'supplementarySolution' : getattr(PICCTS_input, 'supplementarySolution', None),
+        
         })
         
         primToSecSpecies = {}
@@ -374,12 +402,13 @@ def main():
                 primToSecSpecies.update({comp : composition})
 
         centralDict.update({"primToSecSpecies" : primToSecSpecies,})
-        
+        # print(centralDict['primToSecSpecies'])
     elif centralDict["couplingInfo"][1] == 'xGEMS':
         import gems
         speciationLauncher = {
-            2: gems.spct
-        }
+            'xGEMS': gems.spct,}
+        
+
         centralDict.update({
         "chemPath" : getattr(PICCTS_input, 'chemPath', 'dat.lst'),
         "independentComponents" : getattr(PICCTS_input, "independentComponents", None),
@@ -408,9 +437,9 @@ def main():
     elif centralDict["couplingInfo"][1] == 'ORCHESTRA':
         import orchestra
         speciationLauncher = {
-            3: orchestra.spct
-        }
+            'ORCHESTRA': orchestra.spct}
         
+
         speciesAttributes = {}
         dico = getattr(PICCTS_input, 'speciesAttributes', { })
         for ky in dico.keys():
@@ -464,9 +493,7 @@ def main():
 
     if centralDict["couplingInfo"][2] == 'COMSOL':
         import comsol
-        transportLauncher = {
-            1: comsol.trspt, 
-        }
+
         centralDict.update({
         "comsolTags" : [getattr(PICCTS_input, 'comsolComp', 'comp1'),
                        getattr(PICCTS_input, 'comsolIntFonction', 'int1'),
@@ -484,13 +511,7 @@ def main():
         print(f'No module is associated with trsptModule = {getattr(PICCTS_input, "trsptModule", 1)}')
         sys.exit()
 
-    print(f"""
-####   #  ####  ####  #####  ####     {centralDict['couplingInfo'][0]} splitting :
-#  #   #  #     #       #    #        {centralDict['couplingInfo'][1]}--->
-####   #  #     #       #    ####            <---{centralDict['couplingInfo'][2]}
-#      #  #     #       #       #     {maxTime-timeStepReprise}{centralDict['timeUnit']} in {len(dtPICCTS)-stepReprise} steps        
-#      #  ####  ####    #    ####     
-       """, flush=True)
+
 
     
     if not stepReprise:
@@ -507,12 +528,9 @@ def main():
 
 
     for l,t in enumerate(dtPICCTS[start:], start = startTimeStep):
-        # print(t)
-        if any('time' in x for x in (centralDict['partialCoupledParameters'],centralDict['coupledParametersNames'])):
-            centralDict['commMtrx']['time'] = t
+
         
-        pd.set_option('display.max_columns', None)
-        pd.set_option('display.max_rows', 10)
+
         
         if l==startTimeStep and not stepReprise: dt = t
         else: dt = t-dtPICCTS[l-1]
@@ -525,54 +543,54 @@ def main():
         
         print(f"#######  step n°{l+1}/{len(dtPICCTS)}, dt = {dt}{centralDict['timeUnit']}  #######")
 
+
+        transportLauncher = {
+            "COMSOL": comsol.trspt, 
+        }
+        
         if centralDict["firstStepEquilibrium"] and l==startTimeStep:
-            centralDict["dtStep"]=0
-            centralDict.update(speciationLauncher.get(centralDict['chemModule'],0)(centralDict))
-            # print(centralDict['commMtrx'])
-            # sys.exit()
+            centralDict.update(speciationLauncher.get(centralDict['couplingInfo'][1])(centralDict))
             centralDict["firstStepEquilibrium"]=False
             centralDict["dtStep"]=dt
 
         if centralDict['couplingInfo'][0]=='SNIA':
-            centralDict.update(transportLauncher.get(centralDict['trsptModule'],0)(centralDict))
-            # print(centralDict['commMtrx'])
-            centralDict.update(speciationLauncher.get(centralDict['chemModule'],0)(centralDict))    
-            # print(centralDict['commMtrx'])
+            centralDict.update(transportLauncher.get(centralDict['couplingInfo'][2])(centralDict))
+            centralDict.update(speciationLauncher.get(centralDict['couplingInfo'][1])(centralDict))    
         elif centralDict['couplingInfo'][0]=='Strang':
             centralDict['dtStep'] = dt/2
-            centralDict.update(transportLauncher.get(centralDict['trsptModule'],0)(centralDict))
+            centralDict.update(transportLauncher.get(centralDict['couplingInfo'][2])(centralDict))
             centralDict['dtStep'] = dt
-            centralDict.update(speciationLauncher.get(centralDict['chemModule'],0)(centralDict))
+            centralDict.update(speciationLauncher.get(centralDict['couplingInfo'][1])(centralDict))
             centralDict['dtStep'] = dt/2
-            centralDict.update(transportLauncher.get(centralDict['trsptModule'],0)(centralDict))
+            centralDict.update(transportLauncher.get(centralDict['couplingInfo'][2])(centralDict))
 
         elif centralDict['couplingInfo'][0]=='Alternative':
             if l%2==0:
-                centralDict.update(transportLauncher.get(centralDict['trsptModule'],0)(centralDict))
-                centralDict.update(speciationLauncher.get(centralDict['chemModule'],0)(centralDict))
+                centralDict.update(transportLauncher.get(centralDict['couplingInfo'][2])(centralDict))
+                centralDict.update(speciationLauncher.get(centralDict['couplingInfo'][1])(centralDict))
             else:
-                centralDict.update(speciationLauncher.get(centralDict['chemModule'],0)(centralDict))
-                centralDict.update(transportLauncher.get(centralDict['trsptModule'],0)(centralDict))
+                centralDict.update(speciationLauncher.get(centralDict['couplingInfo'][1])(centralDict))
+                centralDict.update(transportLauncher.get(centralDict['couplingInfo'][2])(centralDict))
 
         elif centralDict['couplingInfo'][0]=='Additive':
             commMtrxIC = centralDict['commMtrx'].copy()
-            centralDict.update(transportLauncher.get(centralDict['trsptModule'],0)(centralDict))
+            centralDict.update(transportLauncher.get(centralDict['couplingInfo'][2])(centralDict))
             commMtrxTrspt = centralDict['commMtrx'].copy()
             centralDict['commMtrx'] = commMtrxIC.copy()
-            centralDict.update(speciationLauncher.get(centralDict['chemModule'],0)(centralDict))
+            centralDict.update(speciationLauncher.get(centralDict['couplingInfo'][1])(centralDict))
 
             commMtrx_Final = centralDict['commMtrx'] + commMtrxTrspt - commMtrxIC 
             centralDict['commMtrx'] = commMtrx_Final.copy()
             
         elif centralDict['couplingInfo'][0]=='Symmetrical': # Output solely for last symmetrical coupling ..
             commMtrxIC = centralDict['commMtrx'].copy()
-            centralDict.update(transportLauncher.get(centralDict['trsptModule'],0)(centralDict))
-            centralDict.update(speciationLauncher.get(centralDict['chemModule'],0)(centralDict))
+            centralDict.update(transportLauncher.get(centralDict['couplingInfo'][2])(centralDict))
+            centralDict.update(speciationLauncher.get(centralDict['couplingInfo'][1])(centralDict))
             commMtrxSym1 = centralDict['commMtrx'].copy()
             print('\\')
             centralDict['commMtrx'] = commMtrxIC.copy() 
-            centralDict.update(speciationLauncher.get(centralDict['chemModule'],0)(centralDict))
-            centralDict.update(transportLauncher.get(centralDict['trsptModule'],0)(centralDict))
+            centralDict.update(speciationLauncher.get(centralDict['couplingInfo'][1])(centralDict))
+            centralDict.update(transportLauncher.get(centralDict['couplingInfo'][2])(centralDict))
             
             commMtrx_Final = (commMtrxSym1 + centralDict['commMtrx'])/2
             centralDict['commMtrx'] = commMtrx_Final.copy()
