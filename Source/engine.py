@@ -51,7 +51,7 @@ comsolData = getattr(PICCTS_input, 'comsolData', ['data1'])
 outputCopy = getattr(PICCTS_input, 'outputCopy', True)
 sortiesDossier= ["primSpecies","outputSpeciation","outputHistory"]
 for data in comsolData:
-    sortiesDossier += [f'outputCOMSOL{data}',f'VTU{data}']
+    sortiesDossier += [f'outputTransport{data}',f'VTU{data}']
 
 paths = {} # variables are keys and paths are values
 if getattr(PICCTS_input, 'intermediateOutput', True) :
@@ -134,9 +134,7 @@ trspt_map = {
 
 
 def main():
-    
-    
-    
+
     def writeTime(tps, arr=10):
         if tps >= 3600 * 24:
             return f"{tps / (3600 * 24):.{arr}f} d"
@@ -402,7 +400,6 @@ def main():
                 primToSecSpecies.update({comp : composition})
 
         centralDict.update({"primToSecSpecies" : primToSecSpecies,})
-        # print(centralDict['primToSecSpecies'])
     elif centralDict["couplingInfo"][1] == 'xGEMS':
         import gems
         speciationLauncher = {

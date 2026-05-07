@@ -273,42 +273,29 @@ pe {commMtrxPart.loc[index,'pe']}\n'''
                     scriptMain += f"\t{lst}"
     
         scriptMain += "\nEND\n"
-        # if index == 300:
-        #     print(scriptMain)
-        #     sys.exit()
+
         return scriptMain
    
     
     warnings = 0
     scriptWarnings =""
     
-    commMtrx_species = commMtrxPart[systemSpeciation].copy()
-    # print()
-    # print(commMtrxPart)
-    # print()
-    # print(commMtrx_species)
-    # sys.exit()
 
-    dico = {}
-    dico = {spc: [0]*len(pcDict['commMtrx']) for spc in pcDict['primarySpecies'][-1]}    
-
+    dico = {spc: [0]*len(commMtrxPart) for spc in pcDict['primarySpecies'][-1]}    
 
     ligne = 0
-    for _, row in commMtrx_species.iterrows():
+    for _, row in commMtrxPart.iterrows():
         for comp, conc in row.items():
             for prim in pcDict['primToSecSpecies'][comp] :
                 dico[prim][ligne] += pcDict['primToSecSpecies'][comp][prim] * conc
         ligne += 1
     
-    pd.set_option('display.max_rows', None)
-    commMtrx_primSpecies = pd.DataFrame(dico)
-    # print(commMtrx_primSpecies['Calcite'])
-    # sys.exit()
-    
+    commMtrx_primSpecies = pd.DataFrame(dico, index = commMtrxPart.index)
+
     if ['H+'] in systemSpeciation:
-        commMtrx_primSpecies['H'] = commMtrx_species['H+']
+        commMtrx_primSpecies['H'] = commMtrxPart['H+']
     if ['OH-'] in systemSpeciation:
-        commMtrx_primSpecies['OH'] = commMtrx_species['OH-']
+        commMtrx_primSpecies['OH'] = commMtrxPart['OH-']
 
     if pcDict['acidicTrspt']:
 
@@ -316,13 +303,13 @@ pe {commMtrxPart.loc[index,'pe']}\n'''
             pcDict['AcidicEcho'] = pd.DataFrame(columns = ['H+','OH-','pH'], index = commMtrxPart.index)
             pcDict['AcidicEcho']['OH-'] = 0
             pcDict['AcidicEcho']['H+'] = 0
-            pcDict['AcidicEcho']['pH'] = -np.log10(commMtrx_species['H+']) # environ.
+            pcDict['AcidicEcho']['pH'] = -np.log10(commMtrxPart['H+']) # environ.
             AciditeDiff = pcDict['AcidicEcho'].copy()
         else:
-            pcDict['AcidicEcho'] = pcDict['AcidicEcho'].loc[commMtrx_species.index]
-            AciditeDiff = commMtrx_species[['H+', 'OH-']] - pcDict['AcidicEcho'][['H+', 'OH-']]
+            pcDict['AcidicEcho'] = pcDict['AcidicEcho'].loc[commMtrxPart.index]
+            AciditeDiff = commMtrxPart[['H+', 'OH-']] - pcDict['AcidicEcho'][['H+', 'OH-']]
         
-        AciditeDiff.index = commMtrx_species.index
+        AciditeDiff.index = commMtrxPart.index
         
         mask = (AciditeDiff["H+"] > 0) & (AciditeDiff["OH-"] > 0)
         
@@ -509,7 +496,7 @@ def spct(centralDict):
         print('Fatal PhreeqC error. Aborting run.')
         sys.exit()
     
-    if centralDict['partialCrossDependencies']['chem']:
+    if centralDict['partialCrossDependencies'] and centralDict['partialCrossDependencies']['chem']:
         commMtrxSpct = pd.concat([commMtrxSpct,crossDepMtrx], axis=1)
     
     # print(commMtrxSpct)

@@ -108,9 +108,8 @@ def transportComsol(comsolDict,queue):
             with open("warning.log", "a") as warningLog: warningLog.write(f"COMSOL, t={comsolDict['tStep']}{comsolDict['timeUnit']}, time-step n° {comsolDict['lStep']} : {r}\n")
             abort = True
     if not abort:
-        ref = time.perf_counter()
         outputPath = os.path.join(comsolDict['inputPath'], 'outputTransport.txt')
-        
+        ref = time.perf_counter()
         javamodel.result().export(f"{comsolDict['comsolCoupling']}").setIndex("looplevelinput", "last", 0);
         javamodel.result().export(f"{comsolDict['comsolCoupling']}").set("exporttype", "text");
         javamodel.result().export(f"{comsolDict['comsolCoupling']}").set("filename", f"{outputPath}");
@@ -119,22 +118,22 @@ def transportComsol(comsolDict,queue):
         
         for i,tag in enumerate(comsolDict['comsolData']): # user defined variables ..
             ref = time.perf_counter()
-            path = os.path.join(comsolDict['paths'][f'outputCOMSOL{tag}'], f'Comsol_{comsolDict["lStep"]+1}.txt')
+            path = os.path.join(comsolDict['paths'][f'outputTransport{tag}'], f'COMSOL_{comsolDict["lStep"]+1}.txt')
             javamodel.result().export(f"{tag}").setIndex("looplevelinput", "last", 0);
             javamodel.result().export(f"{tag}").set("exporttype", "text");
             javamodel.result().export(f"{tag}").set("filename", f"{path}");
             javamodel.result().export(f"{tag}").run();
             COMSOLopeningClosing += time.perf_counter() - ref
             if comsolDict['comsolVTU']:
-                path = os.path.join(comsolDict['paths'][f'VTU{tag}'],f'Comsol_{comsolDict["lStep"]+1}.vtu')
+                path = os.path.join(comsolDict['paths'][f'VTU{tag}'],f'COMSOL_{comsolDict["lStep"]+1}.vtu')
                 ref = time.perf_counter()
                 javamodel.result().export(f"{tag}").setIndex("looplevelinput", "last", 0);
                 javamodel.result().export(f"{tag}").set("exporttype", "vtu");
                 javamodel.result().export(f"{tag}").set("filename", f"{path}");
                 javamodel.result().export(f"{tag}").run();
                 COMSOLopeningClosing += time.perf_counter() - ref
-                if comsolDict['lStep']== 0:
-                    path = os.path.join(comsolDict['paths'][f'VTU{tag}'],'Comsol_0.vtu')
+                if comsolDict['lStep'] == 0:
+                    path = os.path.join(comsolDict['paths'][f'VTU{tag}'],'COMSOL_0.vtu')
                     ref = time.perf_counter()
                     javamodel.result().export(f"{tag}").setIndex("looplevelinput", "first", 0);
                     javamodel.result().export(f"{tag}").set("exporttype", "vtu");
