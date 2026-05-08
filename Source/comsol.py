@@ -88,8 +88,6 @@ def transportComsol(comsolDict,queue):
         else: timeUnit = comsolDict['timeUnit']
         ref = time.perf_counter()
         javamodel.study(f"{comsolDict['comsolTags'][2]}").feature("time").set("tunit", f"{timeUnit}");
-        # print(comsolDict['dtStep'],timeUnit)
-        # sys.exit()
         javamodel.study(f"{comsolDict['comsolTags'][2]}").feature("time").set("tlist", f"range(0,{comsolDict['dtStep']},{comsolDict['dtStep']})");
         COMSOLopeningClosing += time.perf_counter() - ref
     except Exception as r:
