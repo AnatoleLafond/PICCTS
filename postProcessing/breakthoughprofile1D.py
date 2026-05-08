@@ -5,8 +5,8 @@ import altair as alt
 import re
 from io import StringIO
 
-dossier = r"C:\Users\AL274877\Desktop\PhreeqC-Comsol\ex11PhreeqCv.0.1\orchestra\git\outputSpeciation"
-# dossier = r"C:\Users\AL274877\Desktop\PhreeqC-Comsol\ex11PhreeqCv.0.1\PhreeqC\SNIA\outputSpeciation"
+dossier = "...\outputSpeciation" # edit your path so that it points to the outputHistory outputSpeciation folder.
+
 st.set_page_config(layout="wide")
 alt.data_transformers.disable_max_rows()
 
@@ -36,7 +36,7 @@ def charger_sorties(dossier):
                 header=0
             )
         except Exception as e:
-            st.warning(f"Erreur lecture {f} : {e}")
+            st.warning(f"Error reading {f} : {e}")
             continue
         if df.empty:
             continue
