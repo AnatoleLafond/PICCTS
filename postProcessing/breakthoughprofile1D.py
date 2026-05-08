@@ -5,7 +5,7 @@ import altair as alt
 import re
 from io import StringIO
 
-dossier = "...\outputSpeciation" # edit your path so that it points to the outputHistory outputSpeciation folder.
+folder = "...\outputSpeciation" # edit your path so that it points to the outputHistory outputSpeciation folder.
 
 st.set_page_config(layout="wide")
 alt.data_transformers.disable_max_rows()
@@ -14,19 +14,19 @@ def extraire_numero(nom_fichier):
     match = re.search(r'(\d+)', nom_fichier)
     return int(match.group(1)) if match else float("inf")
 
-def charger_sorties(dossier):
-    if not os.path.exists(dossier):
+def charger_sorties(folder):
+    if not os.path.exists(folder):
         return []
 
     fichiers = sorted(
-        [f for f in os.listdir(dossier) if f.endswith(".txt")],
+        [f for f in os.listdir(folder) if f.endswith(".txt")],
         key=extraire_numero
     )
 
     dfs = []
 
     for i, f in enumerate(fichiers, start=1):
-        path = os.path.join(dossier, f)
+        path = os.path.join(folder, f)
 
         try:
             df = pd.read_csv(
@@ -45,7 +45,7 @@ def charger_sorties(dossier):
 
     return dfs
 
-dfs = charger_sorties(dossier)
+dfs = charger_sorties(folder)
 
 st.title("Breakthrough concentration")
 
