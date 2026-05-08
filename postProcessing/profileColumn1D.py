@@ -8,8 +8,7 @@ from io import StringIO
 pd.set_option('display.max_columns', 20)
 pd.set_option('display.max_rows', 10)
 
-dossier = r"C:\Users\AL274877\Desktop\PhreeqC-Comsol\ex11PhreeqCv.0.1\orchestra\SNIA\outputHistory"
-dossier = r"C:\Users\AL274877\Desktop\PhreeqC-Comsol\CellulesSeb\Cell2\outputSpeciation"
+folder = "...\outputSpeciation" # edit your path so that it points to the outputHistory outputSpeciation folder.
 
 st.set_page_config(layout="wide")
 alt.data_transformers.disable_max_rows()
@@ -18,21 +17,21 @@ def extraire_numero(nom_fichier):
     match = re.search(r'(\d+)', nom_fichier)
     return int(match.group(1)) if match else float("inf")
 
-@st.cache_data(show_spinner="Lecture des fichiers...")
-def charger_sorties(dossier):
-    if not os.path.exists(dossier):
-        st.error("Dossier introuvable")
+@st.cache_data(show_spinner="Reading files ...")
+def charger_sorties(folder):
+    if not os.path.exists(folder):
+        st.error("folder introuvable")
         return []
 
     fichiers_txt = sorted(
-        [f for f in os.listdir(dossier) if f.endswith(".txt")],
+        [f for f in os.listdir(folder) if f.endswith(".txt")],
         key=extraire_numero
     )
 
     dfs = []
 
     for i, nom_fichier in enumerate(fichiers_txt):
-        chemin = os.path.join(dossier, nom_fichier)
+        chemin = os.path.join(folder, nom_fichier)
 
         df = pd.read_csv(
             chemin,
@@ -50,15 +49,15 @@ def charger_sorties(dossier):
     return dfs
 
 
-df_sortiePhreeqC = charger_sorties(dossier)
+df_sortiePhreeqC = charger_sorties(folder)
 
 if not df_sortiePhreeqC:
     st.stop()
 
-st.title("Profil spatial PICCTS")
+st.title("Spatial profile PICCTS")
 
 index_df = st.slider(
-    "Choisir le pas de temps",
+    "Choose your time step",
     0,
     len(df_sortiePhreeqC) - 1,
     0
@@ -69,13 +68,13 @@ df_selected = df_sortiePhreeqC[index_df]
 all_columns = [col for col in df_selected.columns if col not in ['t', 'x']]
 
 cols_to_plot = st.multiselect(
-    "Choisir les colonnes à tracer :",
+    "Select species :",
     all_columns,
     default=all_columns[:1]
 )
 
 if not cols_to_plot:
-    st.warning("Sélectionne au moins une espèce.")
+    st.warning("Please select a species.")
     st.stop()
 
 plot_data = []
@@ -105,8 +104,8 @@ csv_buffer = StringIO()
 plot_df.to_csv(csv_buffer, index=False)
 
 st.download_button(
-    label="Télécharger les données en CSV",
+    label="Download data in .csv",
     data=csv_buffer.getvalue(),
-    file_name="profil_spatial.csv",
+    file_name="spatialProfile.csv",
     mime="text/csv"
 )
