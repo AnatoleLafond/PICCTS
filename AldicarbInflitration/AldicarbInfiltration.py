@@ -16,8 +16,8 @@ primarySpeciesAq = systemSpeciation
 partialCrossDependencies = {'chem' : ['p','dl.theta_l']}
 
 initialConditions = 'AldicarbInfiltrationIC.txt'
-chemPath = "AldicarbInflitration.dat"
-trsptPath = "AldicarbInflitration.mph" # version 6.4
+chemPath = "AldicarbInfiltration.dat"
+trsptPath = "AldicarbInfiltration.mph" # version 6.4
 
 cutoffAq = 1e-99
 
